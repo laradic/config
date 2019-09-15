@@ -2,10 +2,10 @@
 
 namespace Laradic\Config;
 
-use Illuminate\Contracts\Support\Arrayable;
-use Illuminate\Support\Str;
-use Illuminate\View\Compilers\BladeCompiler;
 use Throwable;
+use Illuminate\Support\Str;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\View\Compilers\BladeCompiler;
 
 class ConfigValueCompiler
 {
@@ -27,7 +27,7 @@ class ConfigValueCompiler
     public function __construct(Repository $repository)
     {
         $this->fs         = new \Illuminate\Filesystem\Filesystem();
-        $this->cachePath  = '/tmp/' . str_random(20);
+        $this->cachePath  = sys_get_temp_dir() . DIRECTORY_SEPARATOR . Str::random(20);
         $this->repository = $repository;
     }
 
@@ -102,7 +102,6 @@ class ConfigValueCompiler
      *
      * @param       $filePath
      * @param array $vars
-     *
      * @return string
      */
     protected function getCompiledContent($filePath, array $vars = [])
@@ -118,7 +117,7 @@ class ConfigValueCompiler
         $array  = require $filePath;
         $string = ob_get_contents();
         ob_end_clean();
-        return $string !== '' || !is_array($array) ? $string : $array;
+        return $string !== '' || ! is_array($array) ? $string : $array;
     }
 
     public function get($key, $default = null)
