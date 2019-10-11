@@ -8,7 +8,6 @@ use ReflectionClass;
 use ReflectionMethod;
 use Laradic\Support\Dot;
 use ReflectionException;
-use Laradic\Support\Wrap;
 use Illuminate\Support\Str;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Symfony\Component\ExpressionLanguage\ExpressionFunction;
@@ -52,6 +51,22 @@ class Parser
         return $target;
     }
 
+    protected function evaluate($value, $data = [])
+    {
+        $matched = preg_match_all('/\{\{(.*?)\}\}/', $value, $matches);
+        if ( ! $matched) {
+            return $value;
+        }
+
+        foreach ($matches[ 0 ] as $i => $original) {
+            $expression = trim($matches[ 1 ][ $i ]);
+            $result     = $this->exl->evaluate($expression, $data);
+            $result     = $this->parse($result, $data);
+            $value      = str_replace($original, $result, $value);
+        }
+        return $value;
+    }
+
     protected function prepareData($data)
     {
         $prepared = $this->data->dot();
@@ -63,14 +78,22 @@ class Parser
     {
         $this->exl->register($name, static function (...$params) {
             throw new \BadMethodCallException('compile not implemented');
-        }, static function ($arguments, ...$params) use ($name,$callback) {
+        }, static function ($arguments, ...$params) use ($name, $callback) {
             return $callback(...$params);
         });
+        return $this;
     }
 
     public function registerPhpFunction($phpName, $expName = null)
     {
         $this->exl->addFunction(ExpressionFunction::fromPhp($phpName, $expName));
+        return $this;
+    }
+
+    public function registerPhpFunctions(array $names)
+    {
+        collect($names)->call([ $this, 'registerPhpFunction' ], [], false);
+        return $this;
     }
 
     public function registerClassMethods($class)
@@ -96,21 +119,16 @@ class Parser
         }
         catch (ReflectionException $e) {
         }
+        return $this;
     }
 
-    protected function evaluate($value, $data = [])
+    public function getExpressionLanguage()
     {
-        $matched = preg_match_all('/\{\{(.*?)\}\}/', $value, $matches);
-        if ( ! $matched) {
-            return $value;
-        }
+        return $this->exl;
+    }
 
-        foreach ($matches[0] as $i => $original) {
-            $expression = trim($matches[1][$i]);
-            $result = $this->exl->evaluate($expression, $data);
-            $result = $this->parse($result, $data);
-            $value = str_replace($original, $result, $value);
-        }
-        return $value;
+    public static function createDefault()
+    {
+        return new Parser(new \Laradic\Config\ExpressionLanguage());
     }
 }

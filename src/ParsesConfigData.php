@@ -1,5 +1,4 @@
 <?php
-/** @noinspection SuspiciousLoopInspection */
 
 
 namespace Laradic\Config;
@@ -7,20 +6,21 @@ namespace Laradic\Config;
 use Illuminate\Support\Arr;
 use Laradic\Support\Macros\Arr\Merge;
 
-/**
- * @mixin \Illuminate\Config\Repository
- */
-trait CompilesConfigValues
+/** @mixin Repository */
+trait ParsesConfigData
 {
-    /** @var ConfigValueCompiler */
-    private $compiler;
+    /** @var \Laradic\Config\Parser */
+    protected $parser;
 
-    public function getCompiler()
+    public function getParser()
     {
-        if($this->compiler === null){
-            $this->compiler = new ConfigValueCompiler($this);
-        }
-        return $this->compiler;
+        return $this->parser;
+    }
+
+    public function setParser($parser)
+    {
+        $this->parser = $parser;
+        return $this;
     }
 
     public function get($key, $default = null)
@@ -37,16 +37,7 @@ trait CompilesConfigValues
 
     public function process($value, $key = null, $default = null)
     {
-        $context = $this->getContext();
-        if (is_string($value)) {
-            $value = $this->getCompiler()->compileString($value, $context);
-        }
-        if (is_array($value)) {
-            foreach ($value as $key => &$val) {
-                $val = $this->process($val); // $value[ $key ] = $this->process($val);
-            }
-        }
-        return $value;
+        return $this->parser->parse($value,$this->items);
     }
 
     public function getContext()
@@ -74,16 +65,5 @@ trait CompilesConfigValues
         $value  = $merger()($value, $data);
         $this->set($key, $value);
         return $this;
-    }
-
-    /**
-     * setValueCompiller method
-     *
-     * @param ConfigValueCompiler
-     * @return \Laradic\Config\Repository
-     */
-    public function setCompiler($compiler)
-    {
-        $this->compiler = $compiler;
     }
 }
