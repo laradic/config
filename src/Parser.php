@@ -9,6 +9,8 @@ use ReflectionMethod;
 use Laradic\Support\Dot;
 use ReflectionException;
 use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
+use Laradic\Support\MultiBench;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Symfony\Component\ExpressionLanguage\ExpressionFunction;
 
@@ -20,23 +22,110 @@ class Parser
     /** @var \Laradic\Support\Dot */
     protected $data;
 
+    /** @var string[] */
+    protected $excludes = [];
+    /** @var string[] */
+    protected $includes = [];
+
     public function __construct(ExpressionLanguage $exl)
     {
         $this->exl  = $exl;
         $this->data = new Dot();
     }
 
-    public function parse($target, $data = [])
+    /**
+     * @param string|string[] $patterns
+     */
+    public function exclude($patterns)
     {
+        return $this->mergeUnique($this->excludes, $patterns);
+    }
+
+    /**
+     * @param string|string[] $patterns
+     */
+    public function include($patterns)
+    {
+        return $this->mergeUnique($this->includes, $patterns);
+    }
+
+    protected function mergeUnique(&$target, $items)
+    {
+        $items  = Arr::wrap($items);
+        $target = array_unique(array_merge($target, $items));
+        return $this;
+    }
+
+    public function shouldParse($key)
+    {
+        $excluded = $this->isExcluded($key);
+        $included = $this->isIncluded($key);
+
+        if ( ! $excluded && ! $included) {
+            return true;
+        }
+        if ($excluded && ! $included) {
+            return false;
+        }
+        if ( ! $excluded && $included) {
+            return true;
+        }
+        if ($excluded && $included) {
+            return true;
+            throw new \Exception('shouldParse calculation not yet implemented');
+        }
+        return false;
+    }
+
+    protected function isExcluded($key)
+    {
+        return $this->hasString($this->excludes, $key);
+    }
+
+    protected function isIncluded($key)
+    {
+        return $this->hasString($this->includes, $key);
+    }
+
+    public function setExcludes($excludes)
+    {
+        $this->excludes = $excludes;
+        return $this;
+    }
+
+    public function setIncludes($includes)
+    {
+        $this->includes = $includes;
+        return $this;
+    }
+
+
+
+    protected function hasString($patterns, $string, $count = false)
+    {
+        $items = array_filter($patterns, static function ($value) use ($string) {
+            $pattern = (string)$value;
+            return Str::is($pattern, $string);
+        }, ARRAY_FILTER_USE_BOTH);
+        return $count ? count($items) : count($items) > 0;
+    }
+
+    public function parse($target, $data = [], $key = null)
+    {
+        if(!$this->shouldParse($key)){
+            return $target;
+        }
+
         $data = $this->prepareData($data);
+
 
         /*
          * If the target is an array
          * then parse it recursively.
          */
         if (is_array($target)) {
-            foreach ($target as $key => &$value) {
-                $value = $this->parse($value, $data);
+            foreach ($target as $k => &$value) {
+                $value = $this->parse($value, $data, $key === null ? $k : $key . '.' . $k);
             }
         }
 
@@ -47,7 +136,6 @@ class Parser
         if (is_string($target) && Str::contains($target, [ '{{', '}}' ])) {
             $target = $this->evaluate($target, $data);
         }
-
         return $target;
     }
 

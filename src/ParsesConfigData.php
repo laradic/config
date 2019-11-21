@@ -4,6 +4,7 @@
 namespace Laradic\Config;
 
 use Illuminate\Support\Arr;
+use Laradic\Support\MultiBench;
 use Laradic\Support\Macros\Arr\Merge;
 
 /** @mixin Repository */
@@ -37,7 +38,12 @@ trait ParsesConfigData
 
     public function process($value, $key = null, $default = null)
     {
-        return $this->parser->parse($value,$this->items);
+        MultiBench::on('config')->mark('process');
+        debugbar()->startMeasure('config');
+        $value = $this->parser->parse($value, $this->items, $key);
+        debugbar()->stopMeasure('config');
+        MultiBench::on('config')->mark('processed');
+        return $value;
     }
 
     public function getContext()
