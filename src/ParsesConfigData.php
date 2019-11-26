@@ -38,6 +38,10 @@ trait ParsesConfigData
 
     public function process($value, $key = null, $default = null)
     {
+        $bench = MultiBench::on('config');
+        if(!$bench->isStarted()){
+            $bench->start();
+        }
         MultiBench::on('config')->mark('process');
         debugbar()->startMeasure('config');
         $value = $this->parser->parse($value, $this->items, $key);
