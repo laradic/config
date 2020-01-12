@@ -8,6 +8,9 @@ class ExpressionLanguage extends \Symfony\Component\ExpressionLanguage\Expressio
 {
     public function evaluate($expression, $values = [])
     {
-        return $this->parse($expression, array_keys($values))->getNodes()->evaluate($this->functions, new GetterObjectDecorator($values));
+        $parsedExpression = $this->parse($expression, array_keys($values));
+        $nodes            = $parsedExpression->getNodes();
+        $evaluated        = $nodes->evaluate($this->functions, new GetterObjectDecorator($values));
+        return $evaluated;
     }
 }
