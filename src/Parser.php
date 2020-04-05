@@ -10,7 +10,6 @@ use Laradic\Support\Dot;
 use ReflectionException;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
-use Laradic\Support\MultiBench;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Symfony\Component\ExpressionLanguage\ExpressionFunction;
 
@@ -64,15 +63,16 @@ class Parser
         if ( ! $excluded && ! $included) {
             return true;
         }
-        if ($excluded && ! $included) {
-            return false;
-        }
         if ( ! $excluded && $included) {
             return true;
         }
+        if ($excluded && ! $included) {
+            return false;
+        }
         if ($excluded && $included) {
-            return true;
-            throw new \Exception('shouldParse calculation not yet implemented');
+            if ($this->includedWeight($key) >= $this->excludedWeight($key)) {
+                return true;
+            }
         }
         return false;
     }
@@ -99,20 +99,40 @@ class Parser
         return $this;
     }
 
-
-
-    protected function hasString($patterns, $string, $count = false)
+    protected function excludedWeight($key)
     {
-        $items = array_filter($patterns, static function ($value) use ($string) {
+        return $this->getStringLengths($this->matchString($this->excludes, $key))->max();
+    }
+
+    protected function includedWeight($key)
+    {
+        return $this->getStringLengths($this->matchString($this->includes, $key))->max();
+    }
+
+    protected function getStringLengths($strings)
+    {
+        return collect($strings)->mapWithKeys(function ($string) {
+            return [ $string => strlen($string) ];
+        });
+    }
+
+    protected function matchString($patterns, $string)
+    {
+        return array_filter($patterns, static function ($value) use ($string) {
             $pattern = (string)$value;
             return Str::is($pattern, $string);
         }, ARRAY_FILTER_USE_BOTH);
+    }
+
+    protected function hasString($patterns, $string, $count = false)
+    {
+        $items = $this->matchString($patterns, $string);
         return $count ? count($items) : count($items) > 0;
     }
 
     public function parse($target, $data = [], $key = null)
     {
-        if(!$this->shouldParse($key)){
+        if ( ! $this->shouldParse($key)) {
             return $target;
         }
 
