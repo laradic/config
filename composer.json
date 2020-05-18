@@ -24,7 +24,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=7.1.0",
-        "illuminate/config": "~5.0|~6.0",
+        "illuminate/config": "^5.0|^6.0|^7.0|^8.0",
         "laradic/support": "~2.0",
         "symfony/expression-language": "~3.0|~4.0"
     },
